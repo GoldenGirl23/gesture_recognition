@@ -1,0 +1,111 @@
+
+import cv2
+import time
+import numpy as np
+import os
+
+
+def nothing(x):
+    pass
+
+
+image_x, image_y = 100, 89
+
+def create_folder(folder_name):
+    #path = os.path.join(root, name)
+    if not os.path.exists(os.curdir + 'data/trn/' + folder_name):
+        os.mkdir(os.curdir + 'data/trn/' + folder_name)
+    if not os.path.exists(os.curdir + 'data/tst/' + folder_name):
+        os.mkdir(os.curdir + 'data/tst/' + folder_name)
+    
+        
+def capture_images(ges_name):
+    #create_folder(str(ges_name))
+    
+    cam = cv2.VideoCapture(0)
+
+    cv2.namedWindow("test")
+
+    img_counter = 0
+    t_counter = 1
+    training_set_image_name = 0
+    test_set_image_name = 0
+
+    cv2.namedWindow("Trackbars")
+
+    cv2.createTrackbar("L - H", "Trackbars", 0, 179, nothing)
+    cv2.createTrackbar("L - S", "Trackbars", 0, 255, nothing)
+    cv2.createTrackbar("L - V", "Trackbars", 0, 255, nothing)
+    cv2.createTrackbar("U - H", "Trackbars", 179, 179, nothing)
+    cv2.createTrackbar("U - S", "Trackbars", 255, 255, nothing)
+    cv2.createTrackbar("U - V", "Trackbars", 255, 255, nothing)
+
+   
+    while True:
+
+        ret, frame = cam.read()
+        frame = cv2.flip(frame, 2)
+
+        l_h = cv2.getTrackbarPos("L - H", "Trackbars")
+        l_s = cv2.getTrackbarPos("L - S", "Trackbars")
+        l_v = cv2.getTrackbarPos("L - V", "Trackbars")
+        u_h = cv2.getTrackbarPos("U - H", "Trackbars")
+        u_s = cv2.getTrackbarPos("U - S", "Trackbars")
+        u_v = cv2.getTrackbarPos("U - V", "Trackbars")
+
+        img = cv2.rectangle(frame, (200,0), (400,200), (0, 255, 0), thickness=2, lineType=8, shift=0)
+
+        lower_blue = np.array([l_h, l_s, l_v])
+        upper_blue = np.array([u_h, u_s, u_v])
+        imcrop = img[0:200, 200:400]
+        hsv = cv2.cvtColor(imcrop, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, lower_blue, upper_blue)
+
+        result = cv2.bitwise_and(imcrop, imcrop, mask=mask)
+        result = cv2.bitwise_not(mask)
+        cv2.dilate(result,(3,3),iterations = 6) 
+
+        
+        cv2.imshow("test", frame)
+        cv2.imshow("mask", mask)
+        cv2.imshow("result", result)
+
+        if cv2.waitKey(1) == ord('c'):
+
+            if t_counter <= 500:
+                img_name = './data/trn/' + str(ges_name) + "_" + "{}.png".format(training_set_image_name)
+                save_img = cv2.resize(result, (image_x, image_y))
+                cv2.imwrite(img_name, save_img)
+                print("{} written!".format(img_name))
+                training_set_image_name += 1
+
+
+            if t_counter > 500 and t_counter <= 600:
+                img_name = './data/tst/' + str(ges_name) + "_" + "{}.png".format(test_set_image_name)
+                save_img = cv2.resize(result, (image_x, image_y))
+                cv2.imwrite(img_name, save_img)
+                print("{} written!".format(img_name))
+                test_set_image_name += 1
+
+                if test_set_image_name > 100:
+                    break
+
+
+                t_counter += 1
+                #if t_counter == 401:
+                #    t_counter = 1
+                img_counter += 1
+
+
+            elif cv2.waitKey(1) == 27:
+                break
+
+        if test_set_image_name > 500:
+            break
+
+
+    cam.release()
+    cv2.destroyAllWindows()
+    
+ges_name = input("Enter gesture name: ")
+capture_images(ges_name)
